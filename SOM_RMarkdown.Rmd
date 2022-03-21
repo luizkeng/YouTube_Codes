@@ -1,0 +1,67 @@
+---
+title: "Redes Neurais de Kohonen"
+output: html_document
+---
+
+# Carregando o pacote Kohonen
+```{r}
+library(kohonen)
+```
+
+
+# Gerando um conjunto de dados na escala RGB: somente Vermelho --> Verde
+```{r}
+## select the number of random RGB vectors for training data
+
+sample.size <- 10000
+
+## generate dataframe of random RGB vectors
+
+sample.rgb <- as.data.frame(matrix(nrow = sample.size, ncol = 3))
+colnames(sample.rgb) <- c('R', 'G', 'B')
+
+set.seed(1)
+sample.rgb$R <- sample(0:255, sample.size, replace = T)
+sample.rgb$G <- sample(0:255, sample.size, replace = T)
+sample.rgb$B <- rep(0, sample.size)
+```
+
+
+# Definindo um mapa espacial e treinando uma rede neural SOM (RN-SOM)
+```{r}
+# Criando o mapa
+set.seed(1)
+som.grid <- somgrid(xdim = 40, ydim = 40, topo = 'hexagonal')
+
+# Treinando a rede
+set.seed(1)
+som.model <- som(data.matrix(sample.rgb), grid = som.grid, rlen=100, alpha = c(0.05,0.01))
+```
+
+# Extraindo informações da RN-SOM treinada
+```{r}
+som.events <- som.model$codes[[1]]
+som.events.colors <- rgb(som.events[,1], som.events[,2], som.events[,3], maxColorValue = 255)
+som.dist <- as.matrix(dist(som.events))
+```
+
+# Exemplificando o que seria o dado não treinado. Não é a configuração exata do início da SOM, mas somente um exemplo de representação do nosso conjunto de cores desordenadas
+```{r}
+sample_cores <- rgb(sample.rgb$R, sample.rgb$G, sample.rgb$B, maxColorValue = 255)
+plot(som.model,
+     type = 'mapping',
+     bg = sample_cores,
+     keepMargins = F,
+     col = NA,
+     main = '')
+```
+
+# Gerando o plot treinado - RED e GREEN
+```{r}
+plot(som.model,
+     type = 'mapping',
+     bg = som.events.colors,
+     keepMargins = F,
+     col = NA,
+     main = '')
+```

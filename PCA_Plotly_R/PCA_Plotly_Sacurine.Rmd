@@ -1,0 +1,529 @@
+---
+title: "PCA - Plotly"
+output: html_document
+---
+
+## Instalar pacotes do Bioconductor (ropls, biosigner)
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("biosigner")
+BiocManager::install("ropls")
+```
+
+## Função para calcular a variância explicada por cada variável em cada PC
+```{r}
+source('CAMINHO_DO_ARQUIVO/pca_Var_explicada.R')
+```
+
+
+# Avaliando variâncias
+## Dado bruto
+```{r}
+data_exp <- data.frame(n_vars=1:ncol(sacurine$dataMatrix), variances = sapply(data.frame(sacurine$dataMatrix),var))
+plot_ly(data_exp, x = ~n_vars, y = ~variances)
+```
+
+## Dado autoescalonado
+```{r}
+data_exp <- data.frame(n_vars=1:ncol(sacurine$dataMatrix), variances = sapply(data.frame(scale(sacurine$dataMatrix)),var))
+plot_ly(data_exp, x = ~n_vars, y = ~variances)
+```
+
+#PCA (SVD) - Função Plotly
+
+## Visualizando conjunto de PCs
+```{r}
+library(plotly)
+library(stats)
+library(ropls)
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X,scale. = T)
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+components$PC3 <- -components$PC3
+components$PC2 <- -components$PC2
+
+axis = list(showline=FALSE,
+            zeroline=FALSE,
+            gridcolor='#ffff',
+            ticklen=4,
+            titlefont=list(size=13))
+
+fig <- components %>%
+  plot_ly()  %>%
+  add_trace(
+    type = 'splom',
+    dimensions = list(
+      list(label=paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''), values=~PC1),
+      list(label=paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''), values=~PC2),
+      list(label=paste('PC 3 (',toString(round(explained_variance_ratio[3],1)),'%)',sep = ''), values=~PC3),
+      list(label=paste('PC 4 (',toString(round(explained_variance_ratio[4],1)),'%)',sep = ''), values=~PC4)
+    ),
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}<br>'),
+    color = sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96')
+  ) %>%
+  style(diagonal = list(visible = FALSE)) %>%
+  layout(
+    legend=list(title=list(text='color')),
+    hovermode='closest',
+    dragmode= 'select',
+    plot_bgcolor='rgba(240,240,240, 0.95)',
+    xaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
+    yaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
+    xaxis2=axis,
+    xaxis3=axis,
+    xaxis4=axis,
+    yaxis2=axis,
+    yaxis3=axis,
+    yaxis4=axis
+  )
+
+fig
+```
+
+
+## Scatter plot 2D
+```{r}
+library(plotly)
+
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X,scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+#components$PC2 <- -components$PC2
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96'), type = 'scatter', mode = 'markers',
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}<br>'))%>%
+  layout(
+    legend=list(title=list(text='color')),
+    plot_bgcolor='#e5ecf6',
+    xaxis = list(
+      title = paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'),
+    yaxis = list(
+      title = paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'))
+fig
+```
+
+## Scatter plot 3D
+```{r}
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X,scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components$PC2 <- -components$PC2
+components$PC3 <- -components$PC3
+components = cbind(components, sacurine$sampleMetadata$gender)
+
+tot_explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+tot_explained_variance_ratio <- 100 * sum(tot_explained_variance_ratio)
+
+tit = 'Total Explained Variance'
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, z = ~PC3, color = ~sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96'),
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}',
+                        '<br><b>z</b>: %{z}')) %>%
+  add_markers(size = 12)
+
+
+fig <- fig %>%
+  layout(
+    title = tit,
+    scene = list(bgcolor = "#e5ecf6")
+)
+
+fig
+```
+
+
+# Realizando seleção de variáveis (assinatura molecular)
+
+```{r}
+library(biosigner)
+diaSign <- biosigner::biosign(scale(sacurine$dataMatrix), sacurine$sampleMetadata[, "gender"], bootI = 50)
+```
+## Identificando variáveis importantes
+
+```{r}
+vars_sel <- c(which(colnames(sacurine$dataMatrix) == 'p-Anisic acid'),
+which(colnames(sacurine$dataMatrix) == 'Testosterone glucuronide'),
+which(colnames(sacurine$dataMatrix) == 'Pantothenic acid'),
+which(colnames(sacurine$dataMatrix) == 'Malic acid'),
+which(colnames(sacurine$dataMatrix) == 'Glu-Val'),
+which(colnames(sacurine$dataMatrix) == 'Oxoglutaric acid'),
+which(colnames(sacurine$dataMatrix) == 'N2-Acetylaminoadipic acid'),
+which(colnames(sacurine$dataMatrix) == 'Xanthosine'))
+```
+
+
+## Visualizando conjunto de PCs
+```{r}
+library(plotly)
+library(ropls)
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+components$PC3 <- -components$PC3
+components$PC2 <- -components$PC2
+
+axis = list(showline=FALSE,
+            zeroline=FALSE,
+            gridcolor='#ffff',
+            ticklen=4,
+            titlefont=list(size=13))
+
+fig <- components %>%
+  plot_ly()  %>%
+  add_trace(
+    type = 'splom',
+    dimensions = list(
+      list(label=paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''), values=~PC1),
+      list(label=paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''), values=~PC2),
+      list(label=paste('PC 3 (',toString(round(explained_variance_ratio[3],1)),'%)',sep = ''), values=~PC3),
+      list(label=paste('PC 4 (',toString(round(explained_variance_ratio[4],1)),'%)',sep = ''), values=~PC4)
+    ),
+    color = sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96'),
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}')
+  ) %>%
+  style(diagonal = list(visible = FALSE)) %>%
+  layout(
+    legend=list(title=list(text='color')),
+    hovermode='closest',
+    dragmode= 'select',
+    plot_bgcolor='rgba(240,240,240, 0.95)',
+    xaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
+    yaxis=list(domain=NULL, showline=F, zeroline=F, gridcolor='#ffff', ticklen=4),
+    xaxis2=axis,
+    xaxis3=axis,
+    xaxis4=axis,
+    yaxis2=axis,
+    yaxis3=axis,
+    yaxis4=axis
+  )
+
+fig
+```
+
+## Scatter plot 2D
+```{r}
+library(plotly)
+
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+#components$PC2 <- -components$PC2
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B'), type = 'scatter', mode = 'markers',
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}'))%>%
+  layout(
+    legend=list(title=list(text='color')),
+    plot_bgcolor='#e5ecf6',
+    xaxis = list(
+      title = paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'),
+    yaxis = list(
+      title = paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'))
+fig
+```
+
+## Tabelando o gênero
+```{r}
+table(sacurine$sampleMetadata$gender)
+```
+
+
+## Contando amostras 'M' com scores negativo em PC2
+```{r}
+masc <- sum(components$PC2[which(sacurine$sampleMetadata$gender == 'M')] < 0)
+masc
+
+# Percentual do total
+masc/sum(sacurine$sampleMetadata$gender == 'M')*100
+```
+## Contando amostras 'F' com scores positivo em PC2
+```{r}
+fem <-  sum(components$PC2[which(sacurine$sampleMetadata$gender == 'F')] > 0)
+fem
+
+# Percentual do total
+fem/sum(sacurine$sampleMetadata$gender == 'F')*100
+```
+
+
+## Scatter plot 3D
+```{r}
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components$PC2 <- -components$PC2
+components$PC3 <- -components$PC3
+components = cbind(components, sacurine$sampleMetadata$gender)
+
+tot_explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+tot_explained_variance_ratio <- 100 * sum(tot_explained_variance_ratio)
+
+tit = 'Total Explained Variance = 99.48'
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, z = ~PC3, color = ~sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96'),
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}',
+                        '<br><b>z</b>: %{z}')) %>%
+  add_markers(size = 12)
+
+
+fig <- fig %>%
+  layout(
+    title = tit,
+    scene = list(bgcolor = "#e5ecf6")
+)
+
+fig
+```
+
+
+
+## Biplot: Scores e Loadings
+```{r}
+library(plotly)
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+
+##SCORES
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+
+
+## LOADINGS
+loadings <- prin_comp[["rotation"]]
+explained_variance <- summary(prin_comp)[["sdev"]]
+explained_variance <- explained_variance[1:2]
+
+for (i in seq(explained_variance)){
+  loadings[,i] <- loadings[,i] * explained_variance[i]
+}
+
+features = colnames(sacurine$dataMatrix[,vars_sel])
+
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender)
+#components$PC2 <- -components$PC2
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~sacurine$sampleMetadata$gender, colors = c('#636EFA','#EF553B','#00CC96'), type = 'scatter', mode = 'markers',
+    text = row.names(sacurine$dataMatrix),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}'))%>%
+  layout(
+    legend=list(title=list(text='color')),
+    plot_bgcolor='#e5ecf6',
+    xaxis = list(
+      title = paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'),
+    yaxis = list(
+      title = paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'))
+
+  for (i in seq(length(features))){
+    fig <- fig %>%
+      add_segments(x = 0, xend = loadings[i, 1], y = 0, yend = loadings[i, 2], line = list(color = 'black'),inherit = FALSE, showlegend = FALSE) %>%
+      add_annotations(x=loadings[i, 1], y=loadings[i, 2], ax = 0, ay = 0,text = features[i], xanchor = 'center', yanchor= 'bottom')
+  }
+
+fig
+```
+
+## Variância Explicada
+```{r}
+X <- data.frame(sacurine[["dataMatrix"]])
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- explained_variance_ratio*100
+data <- data.frame(explained_variance_ratio,paste0("PC",seq(1, length(explained_variance_ratio), 1)))
+colnames(data) <- c('Explained_Variance','Components')
+
+fig <-  plot_ly(data = data, x = ~Components, y = ~Explained_Variance, type = 'bar') %>%
+  layout(
+    xaxis = list(
+      title = "# Components", tickvals = data$Components),
+    yaxis = list(
+      title = "Explained Variance (%)"))
+fig
+```
+
+## Cross-validation para escolha do número de componentes
+```{r}
+library(chemometrics)
+pcaCV(X[,vars_sel], segments = 5, repl = 100)
+```
+
+
+## Variância explicada por cada variável (PC1)
+```{r}
+pcaVarexpl(X[,vars_sel], a=1)
+```
+
+## Variância explicada por cada variável (PC1 + PC2)
+```{r}
+pcaVarexpl(X[,vars_sel], a=2)
+```
+
+## Variância explicada por cada variável (SOMENTE PC2)
+```{r}
+pca_Var_explicada_by_PC(X[,vars_sel], a=2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Predição em PCA
+
+## Scatter plot 2D - sem 25 e 31
+```{r}
+library(plotly)
+
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+X <- X[-c(25,31),]
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+components <- cbind(components, sacurine$sampleMetadata$gender[-c(25,31)])
+#components$PC2 <- -components$PC2
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~sacurine$sampleMetadata$gender[-c(25,31)], colors = c('#636EFA','#EF553B'), type = 'scatter', mode = 'markers',
+    text = row.names(sacurine$dataMatrix[-c(25,31),]),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}'))%>%
+  layout(
+    legend=list(title=list(text='color')),
+    plot_bgcolor='#e5ecf6',
+    xaxis = list(
+      title = paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'),
+    yaxis = list(
+      title = paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'))
+fig
+```
+
+## Scatter plot 2D - adicionando 25 e 31
+```{r}
+library(plotly)
+
+data("sacurine")
+X <- data.frame(sacurine[["dataMatrix"]])
+X <- X[-c(25,31),]
+X <- rbind(X,X[c(25,31),])
+prin_comp <- prcomp(X[,vars_sel],scale. = T)
+components <- prin_comp[["x"]]
+components <- data.frame(components)
+gender <- c(sacurine$sampleMetadata$gender[-c(25,31)],factor("M"),factor("F"))
+components <- cbind(components, gender)
+#components$PC2 <- -components$PC2
+explained_variance_ratio <- summary(prin_comp)[["importance"]]['Proportion of Variance',]
+explained_variance_ratio <- 100 * explained_variance_ratio
+
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~gender, colors = c('#636EFA','#EF553B','#00CC96'), type = 'scatter', mode = 'markers',
+    text = c(row.names(sacurine$dataMatrix[-c(25,31),]),"HU_038","HU_044"),
+    hovertemplate = paste('<b>Amostra</b>: %{text}',
+                        '<br><b>x</b>: %{x}',
+                        '<br><b>y</b>: %{y}'))%>%
+  layout(
+    legend=list(title=list(text='color')),
+    plot_bgcolor='#e5ecf6',
+    xaxis = list(
+      title = paste('PC 1 (',toString(round(explained_variance_ratio[1],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'),
+    yaxis = list(
+      title = paste('PC 2 (',toString(round(explained_variance_ratio[2],1)),'%)',sep = ''),
+      zerolinecolor = "#ffff",
+      zerolinewidth = 2,
+      gridcolor='#ffff'))
+fig
+```
+

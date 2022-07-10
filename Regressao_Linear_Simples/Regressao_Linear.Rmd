@@ -1,0 +1,138 @@
+---
+title: "Regressão Linear"
+output: html_document
+---
+
+
+# Regressão Linear Simples
+
+## Dataset cars
+## 50 observações de 2 variáveis(Velocidade x Distância de Parada)
+```{r}
+data(cars) 
+```
+
+## Visão geral dos dados
+```{r}
+# Dispersão dos dados
+scatter.smooth(x=cars$speed, y=cars$dist)
+
+# Correlação
+cor.test(x=cars$speed, y=cars$dist)
+
+# Boxplot
+par(mfrow=c(1,2))
+boxplot(cars$speed, main="Velocidade", sub=paste("Outlier rows: ", 
+	boxplot.stats(cars$speed)$out))  
+boxplot(cars$dist, main="Distância", sub=paste("Outlier rows: ", 
+	boxplot.stats(cars$dist)$out))
+
+# A distância 120 se apresenta no boxplot como um possível outlier. Vamos rodar o modelo com essa amostra e checar se ela irá afetá-lo
+
+```
+
+## Distribuição dos dados
+```{r}
+# Avaliar a distribuição dos dados
+library(e1071)
+par(mfrow=c(1,2))  
+plot(density(cars$speed), main="Velocidade", 
+	ylab="Frequência", sub=paste("Assimetria:", 
+	round(e1071::skewness(cars$speed), 2)))  
+polygon(density(cars$speed), col="red")
+plot(density(cars$dist), main="Distância", 
+	ylab="Frequência", sub=paste("Assimetria:", 
+	round(e1071::skewness(cars$dist), 2)))  
+polygon(density(cars$dist), col="blue")
+
+
+# Testar normalidade
+shapiro.test(cars$speed) # Velocidade
+shapiro.test(cars$dist)  # Distância
+
+# A distância apresenta uma maior assimetria e não possui uma distribuição normal, segundo o teste de Shapiro-Wilk
+```
+
+## Otimizando o modelo
+```{r}
+# Regressão linear: lm --> Linear Model
+modelo <- lm(dist ~ speed, data=cars)
+summary(modelo)
+
+# Do sumário temos a indicação de significância dos coeficientes a e b
+# Isso é um indicativo de relação entre as variáveis analisadas 
+# Outro dado importante é a variação explicada pelo modelo --> R²
+
+# Além disso, temos o tamanho do efeito que é o valor de b
+# Ele indica que o aumento em uma unidade de velocidade resulta em um aumento de 3,9324 na distância de parada
+
+## dist = -17.579 + 3.932 * speed ## Equação
+#   y   =    a    +   b   *   x
+
+
+```
+
+## Outra checagem o modelo
+```{r}
+# Modelo nulo
+mod.nulo <- lm(dist ~ 1, data=cars) # Aqui usamos só o intercepto
+modelo   <- lm(dist ~ speed, data=cars)
+anova(mod.nulo, modelo)
+
+# Com uma anova temos o indício de que a explicação do segundo modelo é maior do que a do primeiro (modelo nulo)
+# Isso porque a soma dos quadrados dos resíduos diminuiu
+# Então, descartamos o modelo nulo
+
+
+deviance(mod.nulo) # Soma dos quadrados dos resíduos
+deviance(modelo)   # Soma dos quadrados dos resíduos
+
+summary(modelo)[[8]] # R-quadrado
+summary(modelo)[[9]] # R-quadrado ajustado
+
+# Teste
+anova(lm(dist ~ speed, data=cars))
+anova(modelo) # Igual ao comando acima
+```
+
+## Previsão
+```{r}
+# Prever y com base em x:
+predict(modelo, list(speed=160))
+```
+
+## Verificando os resíduos
+```{r}
+# Inspeção dos resíduos
+plot(modelo$residuals, pch=21, col="red") # Resíduos
+
+par(mfrow=c(2,2))
+plot(modelo)
+
+# Testando a normalidade dos resíduos
+shapiro.test(modelo$residuals)
+```
+
+## Removendo o outlier e reconstruindo o modelo
+```{r}
+modelo2 <- update(modelo, subset=(cars$dist != 120))
+summary(modelo2)
+```
+
+
+## Outra checagem o modelo
+```{r}
+mod.nulo2 <- update(mod.nulo, subset=(cars$dist != 120))
+anova(mod.nulo2, modelo2)
+```
+
+
+## Verificando os resíduos
+```{r}
+
+par(mfrow=c(2,2))
+plot(modelo2)
+
+# Testando a normalidade dos resíduos
+shapiro.test(modelo2$residuals)
+```
